@@ -23,4 +23,8 @@ logs/
 *.out
 
 # Local development
+config.local.sh
+*.local.*
+
+# Local development
 config.local.json 

@@ -34,10 +34,10 @@ EOF
 # Create supervisor config
 echo "Setting up supervisor services..."
 sudo tee /etc/supervisor/conf.d/police-scraper.conf << EOF
-[group:police-scraper]
-programs=police-scraper-test,police-scraper-main
+[group:scraper]
+programs=scraper-test,scraper-main
 
-[program:police-scraper-test]
+[program:scraper-test]
 command=/home/$USER/bin/scraper test
 directory=/home/$USER
 autostart=true
@@ -48,8 +48,9 @@ stdout_logfile=/home/$USER/logs/scraper-test.out.log
 environment=LINE_CHANNEL_TOKEN="${LINE_CHANNEL_TOKEN}",LINE_USER_ID="${LINE_USER_ID}"
 user=$USER
 priority=1
+exitcodes=0
 
-[program:police-scraper-main]
+[program:scraper-main]
 command=/home/$USER/bin/scraper
 directory=/home/$USER
 autostart=false
@@ -62,8 +63,8 @@ startsecs=10
 stopwaitsecs=10
 priority=999
 
-[eventlistener:police-scraper-test-handler]
-command=bash -c 'while true; do echo "READY"; read line; supervisorctl start police-scraper-main; echo "RESULT 2"; echo "OK"; done'
+[eventlistener:scraper-test-handler]
+command=bash -c 'while true; do echo "READY"; read line; if echo "$line" | grep -q "PROCESS_STATE_EXITED.*scraper-test.*EXITED.*0"; then supervisorctl start scraper-main; fi; echo "RESULT 2"; echo "OK"; done'
 events=PROCESS_STATE_EXITED
 buffer_size=100
 EOF
@@ -90,5 +91,5 @@ echo "2. Edit ~/.police-scraper.env with your LINE credentials"
 echo "3. Source the environment file: source ~/.police-scraper.env"
 echo "4. Run this setup script again: ./setup_ubuntu.sh"
 echo "5. Restart supervisor completely: sudo systemctl restart supervisor"
-echo "6. Check status: sudo supervisorctl status police-scraper:*"
+echo "6. Check status: sudo supervisorctl status scraper:*"
 echo "7. View logs: tail -f ~/logs/scraper*.log" 

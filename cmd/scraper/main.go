@@ -146,17 +146,36 @@ func main() {
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
 
-	// Run the first check immediately
-	rotateLogFile() // Ensure we're using today's log file
-	slots, err := b.CheckAvailability()
-	if err != nil {
-		log.Printf("Error during check: %v", err)
-		return
+	// Send initial test notification
+	if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
+		log.Printf("Initial test notification failed: %v", err)
+	} else {
+		log.Println("✓ Initial test notification sent successfully")
 	}
 
-	if len(slots) > 0 {
-		if err := lineClient.NotifyAvailableSlots(slots); err != nil {
-			log.Printf("Error sending notification: %v", err)
+	// Main loop
+	for {
+		slots, err := b.CheckAvailability()
+		if err != nil {
+			log.Printf("Error during check: %v", err)
+			time.Sleep(30 * time.Second) // Wait 30s on error before retrying
+			continue
+		}
+
+		if len(slots) > 0 {
+			if err := lineClient.NotifyAvailableSlots(slots); err != nil {
+				log.Printf("Error sending notification: %v", err)
+			}
+		}
+
+		// Wait 15 minutes before next check
+		log.Printf("✓ Check complete. Next check in 15 minutes at %s",
+			time.Now().Add(15*time.Minute).Format("15:04:05"))
+		time.Sleep(15 * time.Minute)
+
+		// Only rotate log file at the start of each day
+		if time.Now().Format("2006-01-02") != time.Now().Add(-15*time.Minute).Format("2006-01-02") {
+			rotateLogFile()
 		}
 	}
 }

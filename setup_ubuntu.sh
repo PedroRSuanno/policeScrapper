@@ -18,10 +18,16 @@ sudo apt-get install -y \
 # Create directories
 mkdir -p ~/logs
 mkdir -p ~/bin
+mkdir -p ~/scripts
 
 # Build the scraper
 echo "Building scraper..."
 go build -o ~/bin/scraper cmd/scraper/main.go
+
+# Copy startup script
+echo "Setting up startup script..."
+cp scripts/start_scraper.sh ~/scripts/
+chmod +x ~/scripts/start_scraper.sh
 
 # Create supervisor environment file
 echo "Creating supervisor environment file..."
@@ -35,7 +41,7 @@ EOF
 echo "Setting up supervisor service..."
 sudo tee /etc/supervisor/conf.d/police-scraper.conf << EOF
 [program:police-scraper]
-command=/home/$USER/bin/scraper
+command=/home/$USER/scripts/start_scraper.sh
 directory=/home/$USER
 autostart=true
 autorestart=true
@@ -48,8 +54,8 @@ stopwaitsecs=10
 EOF
 
 # Ensure proper permissions
-sudo chown $USER:$USER ~/logs ~/bin
-sudo chmod 750 ~/logs ~/bin
+sudo chown $USER:$USER ~/logs ~/bin ~/scripts
+sudo chmod 750 ~/logs ~/bin ~/scripts
 
 echo "Creating user environment file template..."
 tee ~/.police-scraper.env.example << EOF

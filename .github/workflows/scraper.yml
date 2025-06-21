@@ -11,9 +11,64 @@ concurrency:
   cancel-in-progress: true # Cancel any running jobs if a new one is triggered
 
 jobs:
-  scrape:
+  test-notification:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+          cache: true
+
+      - name: Setup log directories
+        run: |
+          # Create log directories with proper permissions
+          mkdir -p logs
+          chmod 750 logs
+
+          # Create today's log file with proper permissions
+          today=$(date +%Y-%m-%d)
+          touch "logs/$today.log"
+          chmod 640 "logs/$today.log"
+
+          # Create run-specific directory
+          run_id=$(date +%Y%m%d_%H%M%S)
+          mkdir -p "logs/$run_id"
+          chmod 750 "logs/$run_id"
+
+      - name: Test LINE Notification
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          run_id=$(date +%Y%m%d_%H%M%S)
+          {
+            echo "=== LINE Notification Test Started at $(date) ==="
+            echo "Run ID: $run_id"
+            echo "GitHub Run Number: ${{ github.run_number }}"
+            echo "Triggered by: ${{ github.event_name }}"
+            echo "========================================"
+            
+            go run cmd/scraper/main.go notify-test
+            
+            echo "========================================="
+            echo "=== LINE Notification Test Completed at $(date) ==="
+          } | tee "logs/$run_id/test.log"
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 90
+
+  scrape:
+    needs: test-notification # Only run if test notification succeeds
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

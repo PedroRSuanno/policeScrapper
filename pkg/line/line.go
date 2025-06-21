@@ -62,19 +62,6 @@ func (c *Client) NotifyAvailableSlots(slots []scraper.Slot) error {
 	return c.sendMessage(payload)
 }
 
-// TestNotification sends a test notification
-func (c *Client) TestNotification(location, category string) error {
-	log.Println("🧪 Testing notification system...")
-	return c.NotifyAvailableSlots([]scraper.Slot{
-		{
-			Location:  location,
-			Category:  category,
-			Date:      "TEST",
-			Available: true,
-		},
-	})
-}
-
 func (c *Client) sendMessage(payload Message) error {
 	if c.channelToken == "" || c.userID == "" {
 		return fmt.Errorf("LINE configuration is incomplete")

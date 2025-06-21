@@ -106,15 +106,12 @@ func rotateLogFile() {
 func main() {
 	// Parse command line arguments
 	isTestMode := false
-	testNotification := false
 	noNotify := false
 
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "test":
 			isTestMode = true
-		case "notify-test":
-			testNotification = true
 		case "--no-notify":
 			noNotify = true
 			log.Println("Notifications disabled (--no-notify flag is set)")
@@ -150,33 +147,11 @@ func main() {
 	// Create LINE client
 	lineClient := line.NewClient(lineToken, lineUserID, noNotify)
 
-	// If only testing notification system
-	if testNotification {
-		// Use test mode target for notification test
-		testTarget := config.GetTarget(true) // Always use test mode target for notification test
-		if err := lineClient.TestNotification(testTarget.Location, testTarget.Category); err != nil {
-			log.Printf("Notification test failed: %v", err)
-		}
-		return
-	}
-
 	log.Println("Scraper started - press Ctrl+C to stop")
 
 	// Create browser instance
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
-
-	// Send initial test notification using current target mode
-	if !noNotify {
-		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
-			log.Printf("⚠️ Initial test notification failed: %v", err)
-			log.Printf("⚠️ Notifications will be disabled")
-			noNotify = true
-			lineClient = line.NewClient(lineToken, lineUserID, true)
-		} else {
-			log.Println("✓ Initial test notification sent successfully")
-		}
-	}
 
 	// Main loop
 	consecutiveErrors := 0
@@ -210,8 +185,6 @@ func main() {
 		time.Sleep(15 * time.Minute)
 
 		// Only rotate log file at the start of each day
-		if time.Now().Format("2006-01-02") != time.Now().Add(-15*time.Minute).Format("2006-01-02") {
-			rotateLogFile()
-		}
+		rotateLogFile()
 	}
 }

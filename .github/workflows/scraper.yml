@@ -23,29 +23,15 @@ jobs:
           go-version: "1.21"
           cache: true
 
-      - name: Setup log directories
-        run: |
-          # Create log directories with proper permissions
-          mkdir -p logs
-          chmod 750 logs
-
-          # Create today's log file with proper permissions
-          today=$(date +%Y-%m-%d)
-          touch "logs/$today.log"
-          chmod 640 "logs/$today.log"
-
-          # Create run-specific directory
-          run_id=$(date +%Y%m%d_%H%M%S)
-          mkdir -p "logs/$run_id"
-          chmod 750 "logs/$run_id"
-
       - name: Debug LINE Credentials
         run: |
+          echo "=== LINE Credentials Debug ==="
           if [ -n "${{ secrets.LINE_CHANNEL_TOKEN }}" ]; then
             echo "LINE_CHANNEL_TOKEN is set"
             echo "LINE_CHANNEL_TOKEN length: ${#LINE_CHANNEL_TOKEN}"
           else
             echo "LINE_CHANNEL_TOKEN is not set"
+            exit 1
           fi
 
           if [ -n "${{ secrets.LINE_USER_ID }}" ]; then
@@ -53,26 +39,60 @@ jobs:
             echo "LINE_USER_ID length: ${#LINE_USER_ID}"
           else
             echo "LINE_USER_ID is not set"
+            exit 1
           fi
+          echo "=== Debug Complete ==="
+
+      - name: Setup log directories
+        id: setup_logs
+        run: |
+          echo "Creating log directories..."
+          mkdir -p logs
+          chmod 750 logs
+
+          # Set run ID
+          run_id=$(date +%Y%m%d_%H%M%S)
+          echo "run_id=${run_id}" >> $GITHUB_OUTPUT
+
+          # Create run-specific directory
+          mkdir -p "logs/${run_id}"
+          chmod 750 "logs/${run_id}"
+
+          # Create today's log file
+          today=$(date +%Y-%m-%d)
+          touch "logs/${today}.log"
+          chmod 640 "logs/${today}.log"
+
+          echo "Log directories created successfully"
+          ls -la logs/
 
       - name: Test LINE Notification
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          run_id=$(date +%Y%m%d_%H%M%S)
+          run_id="${{ steps.setup_logs.outputs.run_id }}"
+          log_file="logs/${run_id}/test.log"
+
+          echo "Using log file: ${log_file}"
+          touch "${log_file}"
+
           {
             echo "=== LINE Notification Test Started at $(date) ==="
-            echo "Run ID: $run_id"
+            echo "Run ID: ${run_id}"
             echo "GitHub Run Number: ${{ github.run_number }}"
             echo "Triggered by: ${{ github.event_name }}"
             echo "========================================"
             
             go run cmd/scraper/main.go notify-test
+            test_exit_code=$?
             
             echo "========================================="
             echo "=== LINE Notification Test Completed at $(date) ==="
-          } | tee "logs/$run_id/test.log"
+            echo "Exit code: ${test_exit_code}"
+            
+            exit ${test_exit_code}
+          } 2>&1 | tee "${log_file}"
 
       - name: Upload test logs
         if: always()
@@ -83,7 +103,7 @@ jobs:
           retention-days: 90
 
   scrape:
-    needs: test-notification # Only run if test notification succeeds
+    needs: test-notification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -101,54 +121,70 @@ jobs:
           sudo apt-get install -y chromium-browser
 
       - name: Setup log directories
+        id: setup_logs
         run: |
-          # Create log directories with proper permissions
+          echo "Creating log directories..."
           mkdir -p logs
           chmod 750 logs
 
-          # Create today's log file with proper permissions
-          today=$(date +%Y-%m-%d)
-          touch "logs/$today.log"
-          chmod 640 "logs/$today.log"
+          # Set run ID
+          run_id=$(date +%Y%m%d_%H%M%S)
+          echo "run_id=${run_id}" >> $GITHUB_OUTPUT
 
           # Create run-specific directory
-          run_id=$(date +%Y%m%d_%H%M%S)
-          mkdir -p "logs/$run_id"
-          chmod 750 "logs/$run_id"
+          mkdir -p "logs/${run_id}"
+          chmod 750 "logs/${run_id}"
+
+          # Create today's log file
+          today=$(date +%Y-%m-%d)
+          touch "logs/${today}.log"
+          chmod 640 "logs/${today}.log"
+
+          echo "Log directories created successfully"
+          ls -la logs/
 
       - name: Run Scraper
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          run_id=$(date +%Y%m%d_%H%M%S)
+          run_id="${{ steps.setup_logs.outputs.run_id }}"
+          log_file="logs/${run_id}/scraper.log"
 
-          # Run scraper and tee output to both console and file
+          echo "Using log file: ${log_file}"
+          touch "${log_file}"
+
           {
             echo "=== Scraper Run Started at $(date) ==="
-            echo "Run ID: $run_id"
+            echo "Run ID: ${run_id}"
             echo "GitHub Run Number: ${{ github.run_number }}"
             echo "Triggered by: ${{ github.event_name }}"
             echo "========================================"
             
             go run cmd/scraper/main.go 2>&1
+            scraper_exit_code=$?
             
             echo "========================================="
             echo "=== Scraper Run Completed at $(date) ==="
-          } | tee "logs/$run_id/scraper.log"
+            echo "Exit code: ${scraper_exit_code}"
+            
+            exit ${scraper_exit_code}
+          } 2>&1 | tee "${log_file}"
 
       - name: Upload run logs
-        if: always() # Upload logs whether the run succeeds or fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: scraper-logs-${{ github.run_number }}
-          path: |
-            logs/
-          retention-days: 90 # Keep logs for 3 months
+          path: logs/
+          retention-days: 90
 
       - name: Clean old logs
-        if: always() # Clean up whether the run succeeds or fails
+        if: always()
         run: |
-          # Keep only logs from the last 90 days
-          find logs/ -type f -mtime +90 -delete
-          find logs/ -type d -empty -delete
+          echo "Cleaning old logs..."
+          # Only attempt to clean if the directory exists
+          if [ -d "logs" ]; then
+            find logs/ -type f -mtime +90 -delete
+            find logs/ -type d -empty -delete
+          fi

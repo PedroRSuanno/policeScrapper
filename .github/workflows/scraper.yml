@@ -39,6 +39,22 @@ jobs:
           mkdir -p "logs/$run_id"
           chmod 750 "logs/$run_id"
 
+      - name: Debug LINE Credentials
+        run: |
+          if [ -n "${{ secrets.LINE_CHANNEL_TOKEN }}" ]; then
+            echo "LINE_CHANNEL_TOKEN is set"
+            echo "LINE_CHANNEL_TOKEN length: ${#LINE_CHANNEL_TOKEN}"
+          else
+            echo "LINE_CHANNEL_TOKEN is not set"
+          fi
+
+          if [ -n "${{ secrets.LINE_USER_ID }}" ]; then
+            echo "LINE_USER_ID is set"
+            echo "LINE_USER_ID length: ${#LINE_USER_ID}"
+          else
+            echo "LINE_USER_ID is not set"
+          fi
+
       - name: Test LINE Notification
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}

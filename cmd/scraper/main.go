@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"policeScrapper/internal/browser"
@@ -15,7 +16,8 @@ import (
 func init() {
 	// Create logs directory if it doesn't exist
 	logsDir := "logs"
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
+	// Fix G301: Reduce directory permissions to 0750
+	if err := os.MkdirAll(logsDir, 0750); err != nil {
 		log.Printf("Error creating logs directory: %v", err)
 		return
 	}
@@ -27,7 +29,14 @@ func init() {
 	today := time.Now().Format("2006-01-02")
 	logFile := filepath.Join(logsDir, today+".log")
 
-	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	// Validate log file path
+	if !isValidLogPath(logFile) {
+		log.Printf("Invalid log file path: %s", logFile)
+		return
+	}
+
+	// Fix G302, G304: Reduce file permissions to 0600 and validate path
+	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600) // #nosec G304 - path is validated by isValidLogPath
 	if err != nil {
 		log.Printf("Error opening log file: %v", err)
 		return
@@ -41,21 +50,45 @@ func init() {
 	log.Printf("=== Starting new session ===")
 }
 
+// isValidLogPath validates the log file path
+func isValidLogPath(path string) bool {
+	// Clean the path
+	cleanPath := filepath.Clean(path)
+
+	// Get absolute path of logs directory
+	logsDir, err := filepath.Abs("logs")
+	if err != nil {
+		return false
+	}
+
+	// Check if the path is within logs directory
+	return strings.HasPrefix(cleanPath, logsDir)
+}
+
 // Helper function to rotate log file if needed
 func rotateLogFile() {
 	today := time.Now().Format("2006-01-02")
 	logFile := filepath.Join("logs", today+".log")
+
+	// Validate log file path
+	if !isValidLogPath(logFile) {
+		log.Printf("Invalid log file path: %s", logFile)
+		return
+	}
 
 	// Check if we're already writing to today's log file
 	if f, ok := log.Writer().(*os.File); ok {
 		if f.Name() == logFile {
 			return
 		}
-		f.Close()
+		// Fix G104: Handle close error
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing log file: %v", err)
+		}
 	}
 
-	// Open new log file
-	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	// Fix G302, G304: Reduce file permissions and validate path
+	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600) // #nosec G304 - path is validated by isValidLogPath
 	if err != nil {
 		log.Printf("Error rotating log file: %v", err)
 		return

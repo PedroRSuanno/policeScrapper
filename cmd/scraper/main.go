@@ -1,0 +1,126 @@
+package main
+
+import (
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+
+	"policeScrapper/internal/browser"
+	"policeScrapper/pkg/config"
+	"policeScrapper/pkg/line"
+)
+
+func init() {
+	// Create logs directory if it doesn't exist
+	logsDir := "logs"
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		log.Printf("Error creating logs directory: %v", err)
+		return
+	}
+
+	// Set up logging with timestamp
+	log.SetFlags(log.Ltime | log.LUTC)
+
+	// Create daily log file
+	today := time.Now().Format("2006-01-02")
+	logFile := filepath.Join(logsDir, today+".log")
+
+	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Error opening log file: %v", err)
+		return
+	}
+
+	// Create a multi-writer to write to both file and stdout
+	multiWriter := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(multiWriter)
+
+	// Log startup message
+	log.Printf("=== Starting new session ===")
+}
+
+// Helper function to rotate log file if needed
+func rotateLogFile() {
+	today := time.Now().Format("2006-01-02")
+	logFile := filepath.Join("logs", today+".log")
+
+	// Check if we're already writing to today's log file
+	if f, ok := log.Writer().(*os.File); ok {
+		if f.Name() == logFile {
+			return
+		}
+		f.Close()
+	}
+
+	// Open new log file
+	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Error rotating log file: %v", err)
+		return
+	}
+
+	// Create a multi-writer to write to both file and stdout
+	multiWriter := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(multiWriter)
+	log.Printf("=== Log rotated to new file ===")
+}
+
+func main() {
+	// Parse command line arguments
+	isTestMode := false
+	testNotification := false
+	noNotify := false
+
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "test":
+			isTestMode = true
+		case "notify-test":
+			testNotification = true
+		case "--no-notify":
+			noNotify = true
+			log.Println("Notifications disabled (--no-notify flag is set)")
+		}
+	}
+
+	// Get target based on mode
+	target := config.GetTarget(isTestMode)
+	if isTestMode {
+		log.Printf("Running in TEST mode - Looking for slots at %s for %s", target.Location, target.Category)
+	} else {
+		log.Printf("Running in REAL mode - Looking for slots at %s for %s", target.Location, target.Category)
+	}
+
+	// Create LINE client
+	lineClient := line.NewClient(os.Getenv("LINE_CHANNEL_TOKEN"), os.Getenv("LINE_USER_ID"), noNotify)
+
+	// If only testing notification system
+	if testNotification {
+		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
+			log.Printf("Notification test failed: %v", err)
+		}
+		return
+	}
+
+	log.Println("Scraper started - press Ctrl+C to stop")
+
+	// Create browser instance
+	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
+	defer b.Close()
+
+	// Run the first check immediately
+	rotateLogFile() // Ensure we're using today's log file
+	slots, err := b.CheckAvailability()
+	if err != nil {
+		log.Printf("Error during check: %v", err)
+		return
+	}
+
+	if len(slots) > 0 {
+		if err := lineClient.NotifyAvailableSlots(slots); err != nil {
+			log.Printf("Error sending notification: %v", err)
+		}
+	}
+}

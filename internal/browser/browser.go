@@ -48,8 +48,8 @@ func New(target config.Target, maxPages int) *Browser {
 		}),
 	)
 
-	// Add timeout
-	ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+	// Add timeout - reduced to 30s to prevent long-running operations that might cause context deadline exceeded errors
+	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 
 	return &Browser{
 		ctx:        ctx,

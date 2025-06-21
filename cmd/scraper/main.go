@@ -164,8 +164,8 @@ func main() {
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
 
-	// Send initial test notification if credentials are available
-	if !noNotify {
+	// Send initial test notification only if explicitly requested with notify-test flag
+	if !noNotify && testNotification {
 		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
 			log.Printf("⚠️ Initial test notification failed: %v", err)
 			log.Printf("⚠️ Notifications will be disabled")

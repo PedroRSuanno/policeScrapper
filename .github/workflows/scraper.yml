@@ -120,8 +120,7 @@ jobs:
           echo "Installing Chrome dependencies..."
           sudo apt-get update
           sudo apt-get install -y \
-            fonts-liberation \
-            libasound2 \
+            libasound2t64 \
             libatk-bridge2.0-0 \
             libatk1.0-0 \
             libatspi2.0-0 \
@@ -144,11 +143,17 @@ jobs:
             libxrandr2 \
             xdg-utils \
             libu2f-udev \
-            libvulkan1
+            libvulkan1 \
+            fonts-liberation \
+            wget
 
-          echo "Downloading and installing Chrome..."
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb
+          echo "Adding Chrome repository..."
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+
+          echo "Installing Chrome..."
+          sudo apt-get install -y google-chrome-stable
 
           echo "Chrome version:"
           google-chrome --version

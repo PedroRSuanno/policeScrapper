@@ -1,64 +1,80 @@
-# Police License Exchange Slot Scraper
+# Police Reservation Scraper
 
-This Go application monitors the Tokyo Metropolitan Police Department's driver's license reservation system for available slots at 府中試験場 for non-29 country applicants. When an available slot is found, it sends an email notification.
+A web scraper for checking appointment availability at Tokyo Metropolitan Police Driver's License Centers. This scraper runs automatically via GitHub Actions.
 
-## Prerequisites
+## Features
 
-- Go 1.21 or later
-- Chrome/Chromium browser (required for web scraping)
-- Gmail account (for sending notifications)
+- Checks for available slots every 15 minutes
+- Sends notifications via LINE when slots are found
+- Runs completely in GitHub Actions
+- Includes security checks and dependency updates
 
 ## Setup
 
-1. Clone the repository:
+### 1. GitHub Repository Setup
 
-```bash
-git clone <your-repo-url>
-cd policeScrapper
-```
+1. Fork or clone this repository
+2. Go to Settings > Secrets and variables > Actions
+3. Add the following repository secrets:
+   - `LINE_CHANNEL_TOKEN`: Your LINE Notify token
+   - `LINE_USER_ID`: Your LINE user ID
 
-2. Install dependencies:
+### 2. Enable GitHub Actions
 
-```bash
-go mod download
-```
+1. Go to Actions tab in your repository
+2. Enable workflows if not already enabled
+3. The scraper will automatically run every 15 minutes
 
-3. Set up environment variables:
+## Local Development
 
-```bash
-export EMAIL_FROM="your-gmail@gmail.com"
-export EMAIL_TO="your-notification@email.com"
-export EMAIL_PASSWORD="your-app-specific-password"
-```
+For testing locally:
 
-Note: For Gmail, you'll need to use an App Password instead of your regular password. You can generate one at: https://myaccount.google.com/apppasswords
+1. Copy configuration template:
 
-## Running the Scraper
+   ```bash
+   cp config.example.sh config.local.sh
+   ```
 
-```bash
-go run main.go
-```
+2. Edit `config.local.sh` with your LINE credentials
 
-The scraper will:
+3. Run the scraper:
+   ```bash
+   go run cmd/scraper/main.go
+   ```
 
-- Check for available slots every 10 minutes
-- Look through the next 90 days of availability
-- Send an email notification when slots are found
-- Run continuously until stopped
+## Configuration
 
-## How it Works
+The scraper supports two modes:
 
-1. The scraper navigates to the reservation page
-2. Selects the 府中試験場 facility for non-29 country applicants
-3. Checks each week for the ⭕️ mark indicating available slots
-4. Clicks through multiple weeks using the 2 週間後 (2 weeks later) button
-5. Sends an email notification when slots are found
+- Test mode: `go run cmd/scraper/main.go test`
+- Real mode: `go run cmd/scraper/main.go`
 
-## Troubleshooting
+Additional flags:
 
-If you encounter any issues:
+- `--no-notify`: Run without sending LINE notifications
+- `notify-test`: Test LINE notification setup
 
-1. Make sure all environment variables are set correctly
-2. Ensure Chrome/Chromium is installed
-3. Check your Gmail settings allow less secure app access or use App Passwords
-4. Verify your internet connection is stable
+## Logs
+
+- Logs are available in GitHub Actions run history
+- Failed runs upload logs as artifacts for debugging
+- Local runs create logs in the `logs/` directory
+
+## Security
+
+- No sensitive data is stored in the repository
+- All credentials are stored in GitHub Secrets
+- Regular security scans via GitHub Actions
+- Dependabot keeps dependencies up to date
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+[Your License Here]

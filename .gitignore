@@ -2,9 +2,6 @@
 logs/
 *.log
 
-# macOS
-.DS_Store
-
 # IDE
 .idea/
 .vscode/
@@ -22,9 +19,9 @@ logs/
 # Output of the go coverage tool
 *.out
 
-# Local development
+# Local configuration
 config.local.sh
 *.local.*
 
-# Local development
-config.local.json 
+# GitHub Actions
+.github/workflows/.env 

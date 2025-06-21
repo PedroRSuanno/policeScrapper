@@ -153,7 +153,23 @@ func main() {
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
 
-	// Main loop
+	// For test mode, just do one check and exit
+	if isTestMode {
+		slots, err := b.CheckAvailability()
+		if err != nil {
+			log.Printf("Error during test check: %v", err)
+			os.Exit(1)
+		}
+		if len(slots) > 0 {
+			if err := lineClient.NotifyAvailableSlots(slots); err != nil {
+				log.Printf("Error sending test notification: %v", err)
+			}
+		}
+		log.Printf("Test check complete")
+		os.Exit(0)
+	}
+
+	// Main loop for normal operation
 	consecutiveErrors := 0
 	for {
 		slots, err := b.CheckAvailability()

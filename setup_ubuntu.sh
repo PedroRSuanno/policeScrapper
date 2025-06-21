@@ -41,7 +41,7 @@ autostart=true
 autorestart=true
 stderr_logfile=/home/$USER/logs/scraper.err.log
 stdout_logfile=/home/$USER/logs/scraper.out.log
-environment=LINE_CHANNEL_TOKEN=%(ENV_LINE_CHANNEL_TOKEN)s,LINE_USER_ID=%(ENV_LINE_USER_ID)s
+environment=LINE_CHANNEL_TOKEN='${LINE_CHANNEL_TOKEN}',LINE_USER_ID='${LINE_USER_ID}'
 user=$USER
 EOF
 
@@ -51,17 +51,17 @@ tee ~/.police-scraper.env.example << EOF
 export LINE_CHANNEL_TOKEN="your_line_channel_token"
 export LINE_USER_ID="your_line_user_id"
 
-# Also update the supervisor environment file
-sudo tee /etc/supervisor/conf.d/env/police-scraper.env << EOL
-LINE_CHANNEL_TOKEN=\${LINE_CHANNEL_TOKEN}
-LINE_USER_ID=\${LINE_USER_ID}
-EOL
+# After editing this file with your credentials:
+# 1. Source it: source ~/.police-scraper.env
+# 2. Run setup again: ./setup_ubuntu.sh
+# 3. Restart supervisor: sudo supervisorctl reread && sudo supervisorctl update
 EOF
 
 echo "Setup complete! Please follow these steps:"
 echo "1. Copy ~/.police-scraper.env.example to ~/.police-scraper.env"
 echo "2. Edit ~/.police-scraper.env with your LINE credentials"
 echo "3. Source the environment file: source ~/.police-scraper.env"
-echo "4. Start the service: sudo supervisorctl reread && sudo supervisorctl update"
-echo "5. Check status: sudo supervisorctl status police-scraper"
-echo "6. View logs: tail -f ~/logs/scraper.out.log" 
+echo "4. Run this setup script again: ./setup_ubuntu.sh"
+echo "5. Start the service: sudo supervisorctl reread && sudo supervisorctl update"
+echo "6. Check status: sudo supervisorctl status police-scraper"
+echo "7. View logs: tail -f ~/logs/scraper.out.log" 

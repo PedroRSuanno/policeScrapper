@@ -177,13 +177,23 @@ func main() {
 	}
 
 	// Main loop
+	consecutiveErrors := 0
 	for {
 		slots, err := b.CheckAvailability()
 		if err != nil {
+			consecutiveErrors++
 			log.Printf("Error during check: %v", err)
-			time.Sleep(30 * time.Second) // Wait 30s on error before retrying
+			// Exponential backoff for consecutive errors
+			backoffDuration := time.Duration(consecutiveErrors*consecutiveErrors) * time.Second
+			if backoffDuration > 5*time.Minute {
+				backoffDuration = 5 * time.Minute // Cap at 5 minutes
+			}
+			log.Printf("Waiting %d seconds before retry (consecutive errors: %d)", int(backoffDuration.Seconds()), consecutiveErrors)
+			time.Sleep(backoffDuration)
 			continue
 		}
+		// Reset error counter on successful check
+		consecutiveErrors = 0
 
 		if len(slots) > 0 {
 			if err := lineClient.NotifyAvailableSlots(slots); err != nil {

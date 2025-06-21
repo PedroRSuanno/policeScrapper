@@ -48,8 +48,8 @@ func New(target config.Target, maxPages int) *Browser {
 		}),
 	)
 
-	// Add timeout - reduced to 30s to prevent long-running operations that might cause context deadline exceeded errors
-	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+	// Add timeout - increased to 60s to handle slower responses
+	ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
 
 	return &Browser{
 		ctx:        ctx,
@@ -73,12 +73,14 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		}
 	}()
 
-	// Add retry logic for initial page load
+	// Add retry logic for initial page load with exponential backoff
 	maxRetries := 3
 	var err error
 	for retry := 0; retry < maxRetries; retry++ {
 		if retry > 0 {
-			time.Sleep(time.Duration(retry) * time.Second)
+			backoffDuration := time.Duration(retry*retry) * time.Second
+			log.Printf("⚠️ Retry %d/%d (waiting %d seconds)", retry+1, maxRetries, retry*retry)
+			time.Sleep(backoffDuration)
 		}
 
 		err = chromedp.Run(b.ctx,
@@ -88,12 +90,9 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		if err == nil {
 			break
 		}
-		if retry < maxRetries-1 {
-			log.Printf("⚠️ Retry %d/%d", retry+1, maxRetries)
-		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to load page: %v", err)
+		return nil, fmt.Errorf("❌ Failed to load page after %d retries: %v", maxRetries, err)
 	}
 
 	// Keep track of how many pages we've checked

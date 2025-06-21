@@ -64,23 +64,15 @@ func (c *Client) NotifyAvailableSlots(slots []scraper.Slot) error {
 
 // TestNotification sends a test notification
 func (c *Client) TestNotification(location, category string) error {
-	log.Println("🧪 Testing notification system with sample data...")
-	testSlots := []scraper.Slot{
+	log.Println("🧪 Testing notification system...")
+	return c.NotifyAvailableSlots([]scraper.Slot{
 		{
 			Location:  location,
 			Category:  category,
-			Date:      "08/01 (Fri)",
+			Date:      "TEST",
 			Available: true,
 		},
-		{
-			Location:  location,
-			Category:  category,
-			Date:      "08/02 (Sat)",
-			Available: true,
-		},
-	}
-
-	return c.NotifyAvailableSlots(testSlots)
+	})
 }
 
 func (c *Client) sendMessage(payload Message) error {

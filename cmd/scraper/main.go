@@ -152,7 +152,9 @@ func main() {
 
 	// If only testing notification system
 	if testNotification {
-		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
+		// Use test mode target for notification test
+		testTarget := config.GetTarget(true) // Always use test mode target for notification test
+		if err := lineClient.TestNotification(testTarget.Location, testTarget.Category); err != nil {
 			log.Printf("Notification test failed: %v", err)
 		}
 		return
@@ -164,7 +166,7 @@ func main() {
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
 
-	// Send initial test notification
+	// Send initial test notification using current target mode
 	if !noNotify {
 		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
 			log.Printf("⚠️ Initial test notification failed: %v", err)

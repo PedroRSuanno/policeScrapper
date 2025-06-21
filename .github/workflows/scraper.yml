@@ -29,14 +29,42 @@ jobs:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          echo "Starting scraper run at $(date)"
-          go run cmd/scraper/main.go
-          echo "Completed scraper run at $(date)"
+          # Create timestamped directory for this run
+          run_id=$(date +%Y%m%d_%H%M%S)
+          mkdir -p logs/$run_id
 
-      - name: Upload logs on failure
-        if: failure()
+          # Run scraper and tee output to both console and file
+          {
+            echo "=== Scraper Run Started at $(date) ==="
+            echo "Run ID: $run_id"
+            echo "GitHub Run Number: ${{ github.run_number }}"
+            echo "Triggered by: ${{ github.event_name }}"
+            echo "========================================"
+            
+            go run cmd/scraper/main.go 2>&1
+            
+            echo "========================================="
+            echo "=== Scraper Run Completed at $(date) ==="
+          } | tee logs/$run_id/scraper.log
+
+          # Copy today's log file if it exists
+          today=$(date +%Y-%m-%d)
+          if [ -f "logs/$today.log" ]; then
+            cp "logs/$today.log" "logs/$run_id/"
+          fi
+
+      - name: Upload run logs
+        if: always() # Upload logs whether the run succeeds or fails
         uses: actions/upload-artifact@v3
         with:
-          name: debug-logs
-          path: logs/
-          retention-days: 7
+          name: scraper-logs-${{ github.run_number }}
+          path: |
+            logs/
+          retention-days: 90 # Keep logs for 3 months
+
+      - name: Clean old logs
+        if: always() # Clean up whether the run succeeds or fails
+        run: |
+          # Keep only logs from the last 90 days
+          find logs/ -type f -mtime +90 -delete
+          find logs/ -type d -empty -delete

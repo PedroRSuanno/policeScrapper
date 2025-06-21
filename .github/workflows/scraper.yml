@@ -60,7 +60,7 @@ jobs:
 
       - name: Upload run logs
         if: always() # Upload logs whether the run succeeds or fails
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: scraper-logs-${{ github.run_number }}
           path: |

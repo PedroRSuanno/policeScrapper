@@ -18,16 +18,10 @@ sudo apt-get install -y \
 # Create directories
 mkdir -p ~/logs
 mkdir -p ~/bin
-mkdir -p ~/scripts
 
 # Build the scraper
 echo "Building scraper..."
 go build -o ~/bin/scraper cmd/scraper/main.go
-
-# Copy startup script
-echo "Setting up startup script..."
-cp scripts/start_scraper.sh ~/scripts/
-chmod +x ~/scripts/start_scraper.sh
 
 # Create supervisor environment file
 echo "Creating supervisor environment file..."
@@ -38,12 +32,27 @@ LINE_USER_ID=${LINE_USER_ID}
 EOF
 
 # Create supervisor config
-echo "Setting up supervisor service..."
+echo "Setting up supervisor services..."
 sudo tee /etc/supervisor/conf.d/police-scraper.conf << EOF
-[program:police-scraper]
-command=/home/$USER/scripts/start_scraper.sh
+[group:police-scraper]
+programs=police-scraper-test,police-scraper-main
+
+[program:police-scraper-test]
+command=/home/$USER/bin/scraper test
 directory=/home/$USER
 autostart=true
+autorestart=false
+startsecs=0
+stderr_logfile=/home/$USER/logs/scraper-test.err.log
+stdout_logfile=/home/$USER/logs/scraper-test.out.log
+environment=LINE_CHANNEL_TOKEN="${LINE_CHANNEL_TOKEN}",LINE_USER_ID="${LINE_USER_ID}"
+user=$USER
+priority=1
+
+[program:police-scraper-main]
+command=/home/$USER/bin/scraper
+directory=/home/$USER
+autostart=false
 autorestart=true
 stderr_logfile=/home/$USER/logs/scraper.err.log
 stdout_logfile=/home/$USER/logs/scraper.out.log
@@ -51,11 +60,17 @@ environment=LINE_CHANNEL_TOKEN="${LINE_CHANNEL_TOKEN}",LINE_USER_ID="${LINE_USER
 user=$USER
 startsecs=10
 stopwaitsecs=10
+priority=999
+
+[eventlistener:police-scraper-test-handler]
+command=bash -c 'while true; do echo "READY"; read line; supervisorctl start police-scraper-main; echo "RESULT 2"; echo "OK"; done'
+events=PROCESS_STATE_EXITED
+buffer_size=100
 EOF
 
 # Ensure proper permissions
-sudo chown $USER:$USER ~/logs ~/bin ~/scripts
-sudo chmod 750 ~/logs ~/bin ~/scripts
+sudo chown $USER:$USER ~/logs ~/bin
+sudo chmod 750 ~/logs ~/bin
 
 echo "Creating user environment file template..."
 tee ~/.police-scraper.env.example << EOF
@@ -75,5 +90,5 @@ echo "2. Edit ~/.police-scraper.env with your LINE credentials"
 echo "3. Source the environment file: source ~/.police-scraper.env"
 echo "4. Run this setup script again: ./setup_ubuntu.sh"
 echo "5. Restart supervisor completely: sudo systemctl restart supervisor"
-echo "6. Check status: sudo supervisorctl status police-scraper"
-echo "7. View logs: tail -f ~/logs/scraper.out.log" 
+echo "6. Check status: sudo supervisorctl status police-scraper:*"
+echo "7. View logs: tail -f ~/logs/scraper*.log" 

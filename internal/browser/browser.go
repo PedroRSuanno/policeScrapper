@@ -15,10 +15,10 @@ import (
 
 // Browser handles the Chrome automation
 type Browser struct {
-	ctx        context.Context
-	cancelFunc context.CancelFunc
-	target     config.Target
-	maxPages   int
+	allocCtx    context.Context
+	cancelAlloc context.CancelFunc
+	target      config.Target
+	maxPages    int
 }
 
 // New creates a new browser instance
@@ -32,36 +32,19 @@ func New(target config.Target, maxPages int) *Browser {
 		chromedp.Headless,
 	)
 
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-
-	// Create a new context
-	ctx, _ := chromedp.NewContext(
-		allocCtx,
-		chromedp.WithLogf(func(format string, args ...interface{}) {
-			// Only log critical browser errors, ignore routine messages and cookie errors
-			msg := fmt.Sprintf(format, args...)
-			if (strings.Contains(msg, "error") || strings.Contains(msg, "failed")) &&
-				!strings.Contains(msg, "cookiePart") &&
-				!strings.Contains(msg, "unmarshal event") {
-				log.Printf("🌐 %s", msg)
-			}
-		}),
-	)
-
-	// Add timeout - increased to 60s to handle slower responses
-	ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 
 	return &Browser{
-		ctx:        ctx,
-		cancelFunc: cancel,
-		target:     target,
-		maxPages:   maxPages,
+		allocCtx:    allocCtx,
+		cancelAlloc: cancelAlloc,
+		target:      target,
+		maxPages:    maxPages,
 	}
 }
 
-// Close closes the browser
+// Close closes the browser allocator
 func (b *Browser) Close() {
-	b.cancelFunc()
+	b.cancelAlloc()
 }
 
 // CheckAvailability checks for available slots
@@ -73,6 +56,24 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		}
 	}()
 
+	// Create a new context for this check
+	ctx, cancel := chromedp.NewContext(
+		b.allocCtx,
+		chromedp.WithLogf(func(format string, args ...interface{}) {
+			msg := fmt.Sprintf(format, args...)
+			if (strings.Contains(msg, "error") || strings.Contains(msg, "failed")) &&
+				!strings.Contains(msg, "cookiePart") &&
+				!strings.Contains(msg, "unmarshal event") {
+				log.Printf("🌐 %s", msg)
+			}
+		}),
+	)
+	defer cancel()
+
+	// Add timeout for this check
+	ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
 	// Add retry logic for initial page load with exponential backoff
 	maxRetries := 3
 	var err error
@@ -83,7 +84,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 			time.Sleep(backoffDuration)
 		}
 
-		err = chromedp.Run(b.ctx,
+		err = chromedp.Run(ctx,
 			chromedp.Navigate(config.BaseURL),
 			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
 		)
@@ -100,7 +101,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 
 	for pagesChecked < b.maxPages {
 		// Wait for the table and SVG elements to load
-		if err := chromedp.Run(b.ctx,
+		if err := chromedp.Run(ctx,
 			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
 			chromedp.WaitVisible(`svg[aria-label="予約可能"], svg[aria-label="空き無"], svg[aria-label="時間外"]`, chromedp.ByQuery),
 			chromedp.Sleep(500*time.Millisecond),
@@ -112,7 +113,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		var availableSlots []scraper.Slot
 		slotScript := b.createSlotScript()
 
-		if err := chromedp.Run(b.ctx, chromedp.Evaluate(slotScript, &availableSlots)); err != nil {
+		if err := chromedp.Run(ctx, chromedp.Evaluate(slotScript, &availableSlots)); err != nil {
 			log.Printf("❌ Error checking slots: %v", err)
 		}
 
@@ -128,7 +129,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 
 		// Try to click the "2週後" button if it's enabled
 		var nextButtonEnabled bool
-		if err := chromedp.Run(b.ctx,
+		if err := chromedp.Run(ctx,
 			chromedp.Evaluate(`!document.querySelector('input[value="2週後＞"]').disabled`, &nextButtonEnabled),
 		); err != nil {
 			return nil, fmt.Errorf("❌ Failed to check button: %v", err)
@@ -138,7 +139,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 			break
 		}
 
-		if err := chromedp.Run(b.ctx,
+		if err := chromedp.Run(ctx,
 			chromedp.Click(`input[value="2週後＞"]`),
 			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
 		); err != nil {
@@ -243,52 +244,14 @@ func (b *Browser) createSlotScript() string {
 						svgLabel: availableSVG.getAttribute('aria-label')
 					});
 
-					// Parse the date (format: "MM/DD")
-					const dateParts = dateText.match(/(\d{2})\/(\d{2})/);
-					if (!dateParts) {
-						console.log("Invalid date format for column " + cellIndex + ": " + dateText);
-						return;
-					}
-
-					// Get current date in Japan timezone
-					const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
-					const month = parseInt(dateParts[1], 10);
-					const day = parseInt(dateParts[2], 10);
-					
-					// Create date object for the slot (assume current year, adjust if needed)
-					let slotDate = new Date(now.getFullYear(), month - 1, day);
-					
-					// If the slot month is less than current month, it's in next year
-					if (month < now.getMonth() + 1) {
-						slotDate.setFullYear(now.getFullYear() + 1);
-					}
-
-					// Skip if date is in the past
-					if (slotDate < now) {
-						console.log("Column " + cellIndex + ": Skipping past date: " + dateText);
-						return;
-					}
-
-					// Skip if it's a closed day (check for 休 or × mark)
-					const closedMark = cell.querySelector('svg[aria-label="休"]') || cell.querySelector('svg[aria-label="×"]');
-					if (closedMark) {
-						console.log("Column " + cellIndex + ": Skipping closed day: " + dateText);
-						return;
-					}
-
-					// Log the full cell content for debugging
-					console.log("Column " + cellIndex + " HTML:", cell.innerHTML);
-
 					slots.push({
-						location: location,
-						category: category,
-						date: dateText,
-						available: true
+						Location: location,
+						Category: category,
+						Date: dateText
 					});
 				});
 			});
 
-			console.log("Final slots found:", slots);
 			return slots;
 		}
 		findAvailableSlots();

@@ -29,14 +29,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y chromium-browser
 
+      - name: Setup log directories
+        run: |
+          # Create log directories with proper permissions
+          mkdir -p logs
+          chmod 750 logs
+
+          # Create today's log file with proper permissions
+          today=$(date +%Y-%m-%d)
+          touch "logs/$today.log"
+          chmod 640 "logs/$today.log"
+
+          # Create run-specific directory
+          run_id=$(date +%Y%m%d_%H%M%S)
+          mkdir -p "logs/$run_id"
+          chmod 750 "logs/$run_id"
+
       - name: Run Scraper
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          # Create timestamped directory for this run
           run_id=$(date +%Y%m%d_%H%M%S)
-          mkdir -p logs/$run_id
 
           # Run scraper and tee output to both console and file
           {
@@ -50,13 +64,7 @@ jobs:
             
             echo "========================================="
             echo "=== Scraper Run Completed at $(date) ==="
-          } | tee logs/$run_id/scraper.log
-
-          # Copy today's log file if it exists
-          today=$(date +%Y-%m-%d)
-          if [ -f "logs/$today.log" ]; then
-            cp "logs/$today.log" "logs/$run_id/"
-          fi
+          } | tee "logs/$run_id/scraper.log"
 
       - name: Upload run logs
         if: always() # Upload logs whether the run succeeds or fails

@@ -41,7 +41,7 @@ autostart=true
 autorestart=true
 stderr_logfile=/home/$USER/logs/scraper.err.log
 stdout_logfile=/home/$USER/logs/scraper.out.log
-environment=LINE_CHANNEL_TOKEN="%(ENV_LINE_CHANNEL_TOKEN)s",LINE_USER_ID="%(ENV_LINE_USER_ID)s"
+environment=LINE_CHANNEL_TOKEN="${LINE_CHANNEL_TOKEN}",LINE_USER_ID="${LINE_USER_ID}"
 user=$USER
 startsecs=10
 stopwaitsecs=10
@@ -60,7 +60,7 @@ export LINE_USER_ID="your_line_user_id"
 # After editing this file with your credentials:
 # 1. Source it: source ~/.police-scraper.env
 # 2. Run setup again: ./setup_ubuntu.sh
-# 3. Restart supervisor: sudo supervisorctl reread && sudo supervisorctl update
+# 3. Restart supervisor: sudo systemctl restart supervisor
 EOF
 
 echo "Setup complete! Please follow these steps:"

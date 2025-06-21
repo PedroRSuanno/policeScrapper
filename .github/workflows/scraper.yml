@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/15 * * * *" # Run every 15 minutes
   workflow_dispatch: # Allow manual trigger for testing
+  # Explicitly NOT running on push/pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # Cancel any running jobs if a new one is triggered
 
 jobs:
   scrape:

@@ -33,9 +33,7 @@ autostart=true
 autorestart=true
 stderr_logfile=/home/$USER/logs/scraper.err.log
 stdout_logfile=/home/$USER/logs/scraper.out.log
-environment=
-    LINE_CHANNEL_TOKEN="%(ENV_LINE_CHANNEL_TOKEN)s",
-    LINE_USER_ID="%(ENV_LINE_USER_ID)s"
+environment=LINE_CHANNEL_TOKEN="%(ENV_LINE_CHANNEL_TOKEN)s",LINE_USER_ID="%(ENV_LINE_USER_ID)s"
 user=$USER
 EOF
 

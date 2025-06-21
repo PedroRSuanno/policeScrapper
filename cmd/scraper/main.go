@@ -121,6 +121,24 @@ func main() {
 		}
 	}
 
+	// Validate LINE credentials
+	lineToken := os.Getenv("LINE_CHANNEL_TOKEN")
+	lineUserID := os.Getenv("LINE_USER_ID")
+	if lineToken == "" || lineUserID == "" {
+		log.Printf("⚠️ LINE credentials not set properly:")
+		if lineToken == "" {
+			log.Printf("  - LINE_CHANNEL_TOKEN is missing")
+		}
+		if lineUserID == "" {
+			log.Printf("  - LINE_USER_ID is missing")
+		}
+		log.Printf("Notifications will be disabled")
+		noNotify = true
+	} else {
+		log.Printf("✓ LINE credentials found (token length: %d, user ID length: %d)",
+			len(lineToken), len(lineUserID))
+	}
+
 	// Get target based on mode
 	target := config.GetTarget(isTestMode)
 	if isTestMode {
@@ -130,7 +148,7 @@ func main() {
 	}
 
 	// Create LINE client
-	lineClient := line.NewClient(os.Getenv("LINE_CHANNEL_TOKEN"), os.Getenv("LINE_USER_ID"), noNotify)
+	lineClient := line.NewClient(lineToken, lineUserID, noNotify)
 
 	// If only testing notification system
 	if testNotification {
@@ -146,11 +164,16 @@ func main() {
 	b := browser.New(target, 12) // Check up to 12 pages (24 weeks)
 	defer b.Close()
 
-	// Send initial test notification
-	if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
-		log.Printf("Initial test notification failed: %v", err)
-	} else {
-		log.Println("✓ Initial test notification sent successfully")
+	// Send initial test notification if credentials are available
+	if !noNotify {
+		if err := lineClient.TestNotification(target.Location, target.Category); err != nil {
+			log.Printf("⚠️ Initial test notification failed: %v", err)
+			log.Printf("⚠️ Notifications will be disabled")
+			noNotify = true
+			lineClient = line.NewClient(lineToken, lineUserID, true)
+		} else {
+			log.Println("✓ Initial test notification sent successfully")
+		}
 	}
 
 	// Main loop
@@ -169,8 +192,9 @@ func main() {
 		}
 
 		// Wait 15 minutes before next check
+		nextCheck := time.Now().Add(15 * time.Minute)
 		log.Printf("✓ Check complete. Next check in 15 minutes at %s",
-			time.Now().Add(15*time.Minute).Format("15:04:05"))
+			nextCheck.Format("15:04:05"))
 		time.Sleep(15 * time.Minute)
 
 		// Only rotate log file at the start of each day

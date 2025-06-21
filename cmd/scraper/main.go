@@ -52,17 +52,20 @@ func init() {
 
 // isValidLogPath validates the log file path
 func isValidLogPath(path string) bool {
-	// Clean the path
-	cleanPath := filepath.Clean(path)
-
 	// Get absolute path of logs directory
 	logsDir, err := filepath.Abs("logs")
 	if err != nil {
 		return false
 	}
 
+	// Get absolute path of the target file
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
 	// Check if the path is within logs directory
-	return strings.HasPrefix(cleanPath, logsDir)
+	return strings.HasPrefix(absPath, logsDir)
 }
 
 // Helper function to rotate log file if needed

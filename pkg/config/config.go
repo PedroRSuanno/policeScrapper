@@ -11,7 +11,7 @@ const (
 	TestCategory = "29の国･地域の方"
 
 	// Base URL for the reservation system
-	BaseURL = "https://www.keishicho-gto.metro.tokyo.lg.jp/keishicho-u/reserve/offerList_detail?tempSeq=445"
+	BaseURL = "https://www.keishicho-gto.metro.tokyo.lg.jp/keishicho-u/reserve/offerList_detail?tempSeq=461"
 )
 
 // Config holds the application configuration

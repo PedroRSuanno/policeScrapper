@@ -72,7 +72,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 	defer cancel()
 
 	// Add timeout for this check
-	ctx, cancel = context.WithTimeout(ctx, 300*time.Second)
+	ctx, cancel = context.WithTimeout(ctx, 600*time.Second)
 	defer cancel()
 
 	// Add retry logic for initial page load with exponential backoff

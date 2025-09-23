@@ -119,8 +119,8 @@ func main() {
 	}
 
 	// Validate LINE credentials
-	lineToken := os.Getenv("LINE_CHANNEL_TOKEN")
-	lineUserID := os.Getenv("LINE_USER_ID")
+	lineToken := "9685aef47a7887752aa10f0e4c2838f2"
+	lineUserID := "@172xcnhzs"
 	if lineToken == "" || lineUserID == "" {
 		log.Printf("⚠️ LINE credentials not set properly:")
 		if lineToken == "" {

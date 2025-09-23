@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"errors"
 
 	"policeScrapper/pkg/config"
 	"policeScrapper/pkg/scraper"

@@ -89,7 +89,8 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		var buf []byte
 		err = chromedp.Run(ctx,
 			chromedp.Navigate(config.BaseURL),
-			chromedp.WaitVisible(`body`, chromedp.ByQuery),
+		    chromedp.Sleep(5 * time.Second),
+			chromedp.WaitReady(`body`, chromedp.ByQuery),
 		    chromedp.CaptureScreenshot(&buf),
 		)
 		fmt.Println("DEBUG -- Screenshot base64:")

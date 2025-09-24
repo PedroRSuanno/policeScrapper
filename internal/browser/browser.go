@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	"errors"
+	"encoding/base64"
 
 	"policeScrapper/pkg/config"
 	"policeScrapper/pkg/scraper"

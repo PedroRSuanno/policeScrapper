@@ -85,10 +85,16 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 			time.Sleep(backoffDuration)
 		}
 
+		var buf []byte
 		err = chromedp.Run(ctx,
 			chromedp.Navigate(config.BaseURL),
-			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
+			chromedp.WaitVisible(`body`, chromedp.ByQuery),
+		    chromedp.CaptureScreenshot(&buf),
 		)
+		fmt.Println("DEBUG -- Screenshot base64:")
+		fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+		
 		if err == nil {
 			break
 		}

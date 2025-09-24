@@ -87,12 +87,19 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		}
 
 		var buf []byte
+
+	   if err := chromedp.Run(ctx,
+		    chromedp.Navigate(config.BaseURL),
+			chromedp.Click(`input[value="pedroca"]`),
+			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
+		); err != nil {
+			return nil, fmt.Errorf("❌ Failed to click button: %v", err)
+		}
+		
 		err = chromedp.Run(ctx,
 			chromedp.Navigate(config.BaseURL),
-			chromedp.WaitVisible(`pedroca`, chromedp.ByID), // wait for checkbox
-    		chromedp.Click(`pedroca`, chromedp.ByID),        // click it
 		    chromedp.Sleep(5 * time.Second),
-			chromedp.WaitReady(`body`, chromedp.ByQuery),
+			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
 		    chromedp.CaptureScreenshot(&buf),
 		)
 		fmt.Println("DEBUG -- Screenshot base64:")

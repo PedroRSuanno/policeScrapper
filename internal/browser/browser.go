@@ -89,6 +89,8 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 		var buf []byte
 		err = chromedp.Run(ctx,
 			chromedp.Navigate(config.BaseURL),
+			chromedp.WaitVisible(`reserveCaution`, chromedp.ByID), // wait for checkbox
+    		chromedp.Click(`reserveCaution`, chromedp.ByID),        // click it
 		    chromedp.Sleep(5 * time.Second),
 			chromedp.WaitReady(`body`, chromedp.ByQuery),
 		    chromedp.CaptureScreenshot(&buf),

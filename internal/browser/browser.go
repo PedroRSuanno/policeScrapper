@@ -90,7 +90,7 @@ func (b *Browser) CheckAvailability() ([]scraper.Slot, error) {
 
 	   if err := chromedp.Run(ctx,
 		    chromedp.Navigate(config.BaseURL),
-			chromedp.Click(`input[value="reserveCaution"]`),
+			chromedp.Click(`input[type="checkbox"]`),
 			chromedp.WaitVisible(`table.time--table`, chromedp.ByQuery),
 		); err != nil {
 			return nil, fmt.Errorf("❌ Failed to click button: %v", err)
